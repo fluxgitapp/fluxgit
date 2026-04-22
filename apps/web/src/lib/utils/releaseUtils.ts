@@ -1,11 +1,119 @@
-import { getValidReleases, type Build, type Release } from "$lib/types/releases";
+import type { Build, Release } from "$lib/types/releases";
 
-const API_BASE_URL = "https://app.fluxgit.com/api/downloads";
+const GITHUB_API_URL = "https://api.github.com/repos/fluxgitapp/fluxgit/releases";
 
 export const RELEASE_OS_ORDER = ["darwin", "linux", "windows"] as const;
 
+// ─── Asset → Build mapping ────────────────────────────────────────────────────
+
 /**
- * Process builds by filtering out .zip files, removing duplicates, and sorting by platform
+ * Detect OS from a GitHub release asset filename.
+ */
+function detectOS(filename: string): Build["os"] | null {
+	const f = filename.toLowerCase();
+	if (f.includes("darwin") || f.includes("macos") || f.includes(".dmg") || f.includes(".app")) return "darwin";
+	if (f.includes("linux") || f.includes(".deb") || f.includes(".rpm") || f.includes(".appimage")) return "linux";
+	if (f.includes("windows") || f.includes("win") || f.includes(".msi") || f.includes(".exe") || f.includes("setup")) return "windows";
+	return null;
+}
+
+/**
+ * Detect architecture from a GitHub release asset filename.
+ */
+function detectArch(filename: string): Build["arch"] {
+	const f = filename.toLowerCase();
+	if (f.includes("aarch64") || f.includes("arm64")) return "aarch64";
+	return "x86_64";
+}
+
+/**
+ * Map a GitHub release asset to a Build object. Returns null if the asset
+ * is not a recognized installer (e.g. source archives, checksums, etc.).
+ */
+function assetToBuild(asset: { name: string; browser_download_url: string }): Build | null {
+	const os = detectOS(asset.name);
+	if (!os) return null;
+
+	// Skip updater zip bundles — they're not direct installers
+	if (asset.name.endsWith(".zip") && !asset.name.includes("AppImage")) return null;
+	// Skip checksum files
+	if (asset.name.endsWith(".sig") || asset.name.endsWith(".sha256") || asset.name.endsWith(".sha512")) return null;
+
+	const arch = detectArch(asset.name);
+
+	return {
+		os,
+		arch,
+		url: asset.browser_download_url,
+		file: asset.name,
+		platform: `${os}-${arch}`,
+	};
+}
+
+/**
+ * Map a GitHub API release object to our Release type.
+ */
+function githubReleaseToRelease(ghRelease: any): Release | null {
+	// Skip draft releases
+	if (ghRelease.draft) return null;
+
+	const version: string = ghRelease.tag_name?.replace(/^v/, "") ?? "";
+	if (!version) return null;
+
+	const isNightly = ghRelease.prerelease || ghRelease.tag_name?.includes("nightly");
+	const channel = isNightly ? "nightly" : "release";
+
+	const builds: Build[] = (ghRelease.assets ?? [])
+		.map(assetToBuild)
+		.filter((b: Build | null): b is Build => b !== null);
+
+	return {
+		version,
+		notes: ghRelease.body ?? null,
+		sha: ghRelease.target_commitish ?? "",
+		channel,
+		build_version: version,
+		released_at: ghRelease.published_at ?? ghRelease.created_at ?? new Date().toISOString(),
+		builds,
+	};
+}
+
+// ─── Core fetch ───────────────────────────────────────────────────────────────
+
+/**
+ * Fetch releases from the GitHub Releases API.
+ */
+export async function fetchReleases(
+	limit: number = 10,
+	channel: "release" | "nightly" = "release",
+): Promise<Release[]> {
+	const perPage = Math.min(limit * 2, 100); // fetch extra to account for filtering
+	const response = await fetch(`${GITHUB_API_URL}?per_page=${perPage}`, {
+		headers: {
+			Accept: "application/vnd.github+json",
+			"X-GitHub-Api-Version": "2022-11-28",
+		},
+	});
+
+	if (!response.ok) {
+		console.error(`GitHub releases API error: ${response.status}`);
+		return [];
+	}
+
+	const data = await response.json();
+	if (!Array.isArray(data)) return [];
+
+	return data
+		.map(githubReleaseToRelease)
+		.filter((r): r is Release => r !== null)
+		.filter((r) => (channel === "nightly" ? r.channel === "nightly" : r.channel === "release"))
+		.slice(0, limit);
+}
+
+// ─── Utilities ────────────────────────────────────────────────────────────────
+
+/**
+ * Process builds by filtering out .zip files, removing duplicates, and sorting by platform.
  */
 export function processBuilds(builds: Build[]): Build[] {
 	return builds
@@ -15,7 +123,7 @@ export function processBuilds(builds: Build[]): Build[] {
 }
 
 /**
- * Find a specific build based on OS, architecture, and optional file includes criteria
+ * Find a specific build based on OS, architecture, and optional file includes criteria.
  */
 export function findBuild(
 	builds: Build[],
@@ -33,7 +141,6 @@ export function findBuild(
 
 /**
  * Remove duplicate releases based on version, keeping the first occurrence.
- * This is useful when the API returns duplicate releases with the same version.
  */
 export function deduplicateReleases(releases: Release[]): Release[] {
 	return releases.filter(
@@ -42,8 +149,29 @@ export function deduplicateReleases(releases: Release[]): Release[] {
 }
 
 /**
- * Create standardized build mapping for the latest release with common platform configurations
+ * Process all releases by applying processBuilds to each release's builds array and removing duplicates.
  */
+export function processAllReleases(releases: Release[]): Release[] {
+	const processedReleases = releases.map((release) => ({
+		...release,
+		builds: processBuilds(release.builds),
+	}));
+	return deduplicateReleases(processedReleases);
+}
+
+/**
+ * Fetch and process releases from GitHub.
+ */
+export async function fetchAndProcessReleases(
+	limit: number = 10,
+	channel: "release" | "nightly" = "release",
+): Promise<Release[]> {
+	const releases = await fetchReleases(limit, channel);
+	return processAllReleases(releases);
+}
+
+// ─── Latest release build map ─────────────────────────────────────────────────
+
 export interface LatestReleaseBuilds {
 	darwin_x86_64: Build | undefined;
 	darwin_aarch64: Build | undefined;
@@ -59,7 +187,7 @@ export interface LatestReleaseBuilds {
 }
 
 /**
- * Find a Linux-specific CLI-only build (not AppImage, deb, or rpm) for a given arch
+ * Find a Linux-specific CLI-only build (not AppImage, deb, or rpm) for a given arch.
  */
 export function findLinuxCliBuild(builds: Build[], arch: "x86_64" | "aarch64"): Build | undefined {
 	return builds.find(
@@ -81,40 +209,4 @@ export function createLatestReleaseBuilds(latestRelease: Release): LatestRelease
 		linux_cli_x86_64: findLinuxCliBuild(latestRelease.builds, "x86_64"),
 		linux_cli_aarch64: findLinuxCliBuild(latestRelease.builds, "aarch64"),
 	};
-}
-
-/**
- * Process all releases by applying processBuilds to each release's builds array and removing duplicates
- */
-export function processAllReleases(releases: Release[]): Release[] {
-	const processedReleases = releases.map((release) => ({
-		...release,
-		builds: processBuilds(release.builds),
-	}));
-
-	// Remove duplicate releases based on version using the dedicated function
-	return deduplicateReleases(processedReleases);
-}
-
-/**
- * Fetch releases from the FluxGit API
- */
-export async function fetchReleases(
-	limit: number = 10,
-	channel: "release" | "nightly" = "release",
-): Promise<Release[]> {
-	const response = await fetch(`${API_BASE_URL}?limit=${limit}&channel=${channel}`);
-	const data = await response.json();
-	return getValidReleases(data);
-}
-
-/**
- * Fetch and process releases from the FluxGit API
- */
-export async function fetchAndProcessReleases(
-	limit: number = 10,
-	channel: "release" | "nightly" = "release",
-): Promise<Release[]> {
-	const releases = await fetchReleases(limit, channel);
-	return processAllReleases(releases);
 }
