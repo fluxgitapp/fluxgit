@@ -1,0 +1,35 @@
+[package]
+name = "but-rebase"
+version = "0.0.0"
+edition.workspace = true
+authors.workspace = true
+publish = false
+rust-version.workspace = true
+
+[lib]
+doctest = false
+
+[dependencies]
+but-core.workspace = true
+but-gerrit.workspace = true
+but-error.workspace = true
+but-graph.workspace = true
+
+gix = { workspace = true, features = ["revision", "merge"] }
+anyhow.workspace = true
+tracing.workspace = true
+bstr.workspace = true
+tempfile.workspace = true
+serde.workspace = true
+toml.workspace = true
+petgraph.workspace = true
+
+[dev-dependencies]
+but-testsupport.workspace = true
+insta = "1.45.1"
+but-meta = { workspace = true, features = ["legacy"] }
+
+fluxgit-reference.workspace = true
+
+[lints]
+workspace = true

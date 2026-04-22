@@ -1,0 +1,140 @@
+[package]
+name = "but-api"
+version = "0.0.0"
+edition.workspace = true
+repository.workspace = true
+license-file = "../../LICENSE.md"
+description = "A FluxGit CLI tool"
+authors.workspace = true
+readme = "../../README.md"
+publish = false
+rust-version.workspace = true
+
+[package.metadata.cargo-machete]
+ignored = [
+    # Used by macro-generated async API glue that machete does not detect reliably.
+    "futures",
+    # Used only when the `napi` feature is enabled for Node bindings.
+    "napi",
+    # Used only when the `napi` feature is enabled for Node bindings.
+    "napi-derive",
+    # Used only when the `tauri` feature is enabled for Tauri command bindings.
+    "tauri",
+]
+
+[lib]
+doctest = false
+
+[features]
+default = []
+## Provide Tauri commands automatically where possible, to avoid duplication.
+## Needs "legacy" as long as it needs `ProjectId` and is not switched to `ProjectHandle`.
+tauri = ["dep:tauri", "legacy"]
+## Provide napi bindings for Node.js via napi-rs.
+## Needs "legacy" as long as it needs `LegacyProjectId`.
+napi = ["dep:napi", "dep:napi-derive", "legacy"]
+## When paths are turned into strings they are lossy. Also provide a `_bytes` variant of such fields with the original value
+## for lossless use.
+path-bytes = []
+## Generate JSON schemas for TypeScript type generation via schemars.
+export-schema = [
+    "but-workspace/export-schema",
+    "fluxgit-project/export-schema",
+]
+## Make legacy functionality available.
+legacy = [
+    "but-ctx/legacy",
+    "but-workspace/legacy",
+    "dep:fluxgit-user",
+    "dep:fluxgit-project",
+    "dep:fluxgit-branch",
+    "dep:fluxgit-branch-actions",
+    "dep:fluxgit-commit",
+    "dep:fluxgit-reference",
+    "dep:fluxgit-stack",
+    "dep:fluxgit-repo",
+    "dep:fluxgit-repo-actions",
+    "dep:fluxgit-edit-mode",
+    "dep:fluxgit-operating-modes",
+    "dep:fluxgit-oplog",
+    "dep:fluxgit-git",
+    "dep:but-action",
+    "dep:but-claude",
+    "dep:but-rules",
+    "dep:but-gerrit",
+    "dep:but-worktrees",
+    "dep:but-cherry-apply",
+    "dep:url",
+]
+
+[dependencies]
+but-serde.workspace = true
+but-path.workspace = true
+but-api-macros.workspace = true
+but-oxidize.workspace = true
+but-error.workspace = true
+but-core.workspace = true
+but-graph.workspace = true
+but-ctx.workspace = true
+but-workspace.workspace = true
+but-settings.workspace = true
+but-secret.workspace = true
+but-rebase.workspace = true
+but-db.workspace = true
+but-forge.workspace = true
+but-forge-storage.workspace = true
+but-hunk-assignment.workspace = true
+but-hunk-dependency.workspace = true
+but-github.workspace = true
+but-gitlab.workspace = true
+# 'legacy' is needed while this is only a sketch of what the oplog could be.
+# For single-branch testing, we also want the oplog and just take it as it is.
+but-oplog = { workspace = true, features = ["legacy"] }
+itertools.workspace = true
+
+# What follows is *basically* newly written crates that are built on top of legacy,
+# so need some refactoring/rethinking to become usable.
+but-cherry-apply = { workspace = true, optional = true }
+but-action = { workspace = true, optional = true }
+but-claude = { workspace = true, optional = true }
+but-rules = { workspace = true, optional = true }
+but-gerrit = { workspace = true, optional = true }
+but-worktrees = { workspace = true, optional = true }
+fluxgit-user = { workspace = true, optional = true }
+fluxgit-project = { workspace = true, optional = true }
+fluxgit-branch = { workspace = true, optional = true }
+fluxgit-branch-actions = { workspace = true, optional = true }
+fluxgit-commit = { workspace = true, optional = true }
+fluxgit-reference = { workspace = true, optional = true }
+fluxgit-stack = { workspace = true, optional = true }
+fluxgit-repo = { workspace = true, optional = true }
+fluxgit-repo-actions = { workspace = true, optional = true }
+fluxgit-edit-mode = { workspace = true, optional = true }
+fluxgit-operating-modes = { workspace = true, optional = true }
+fluxgit-oplog = { workspace = true, optional = true }
+fluxgit-git = { workspace = true, optional = true }
+tauri = { version = "^2.9.5", features = ["unstable"], optional = true } # For the #[tauri::command(async)] macro only
+napi = { version = "3.0.0", features = ["serde-json", "tokio_rt"], optional = true }
+napi-derive = { version = "3.0.0", optional = true }
+boolean-enums = { version = "0.4.1", features = ["serde"] }
+bstr = { workspace = true }
+schemars.workspace = true
+serde.workspace = true
+tokio = { workspace = true, features = ["full"] }
+futures.workspace = true
+anyhow.workspace = true
+serde_json.workspace = true
+tracing.workspace = true
+serde-error = "0.1.3"
+gix = { workspace = true, features = ["worktree-mutation"] }
+git2.workspace = true
+open.workspace = true
+url = { version = "2.5", optional = true }
+uuid.workspace = true
+which = "8.0.0"
+
+[dev-dependencies]
+insta.workspace = true
+
+[lints]
+workspace = true

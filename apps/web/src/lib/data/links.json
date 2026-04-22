@@ -1,0 +1,124 @@
+{
+	"downloads": {
+		"appleSilicon": {
+			"id": "appleSilicon",
+			"url": "https://app.fluxgit.com/downloads/release/darwin/aarch64/dmg",
+			"label": "Apple Silicon"
+		},
+		"intelMac": {
+			"id": "intelMac",
+			"url": "https://app.fluxgit.com/downloads/release/darwin/x86_64/dmg",
+			"label": "Intel Mac"
+		},
+		"linuxAppimage": {
+			"id": "linuxAppimage",
+			"url": "https://app.fluxgit.com/downloads/release/linux/x86_64/gz",
+			"label": "Linux AppImage"
+		},
+		"linuxDeb": {
+			"id": "linuxDeb",
+			"url": "https://app.fluxgit.com/downloads/release/linux/x86_64/deb",
+			"label": "Linux DEB"
+		},
+		"linuxRpm": {
+			"id": "linuxRpm",
+			"url": "https://app.fluxgit.com/downloads/release/linux/x86_64/rpm",
+			"label": "Linux RPM"
+		},
+		"windowsMsi": {
+			"id": "windowsMsi",
+			"url": "https://app.fluxgit.com/downloads/release/windows/x86_64/msi",
+			"label": "Windows MSI"
+		}
+	},
+	"resources": {
+		"downloads": {
+			"id": "downloads",
+			"url": "/downloads",
+			"label": "Downloads"
+		},
+		"documentation": {
+			"id": "documentation",
+			"url": "https://docs.fluxgit.com",
+			"label": "Docs"
+		},
+		"source": {
+			"id": "source",
+			"url": "https://github.com/fluxgitapp/fluxgit",
+			"label": "Source"
+		},
+		"jobs": {
+			"id": "jobs",
+			"url": "https://jobs.fluxgit.com",
+			"label": "Jobs"
+		},
+		"blog": {
+			"id": "blog",
+			"url": "https://blog.fluxgit.com",
+			"label": "Blog"
+		}
+	},
+	"social": {
+		"discord": {
+			"id": "discord",
+			"url": "https://discord.com/invite/MmFkmaJ42D",
+			"label": "Discord"
+		},
+		"youtube": {
+			"id": "youtube",
+			"url": "https://www.youtube.com/@fluxgitapp",
+			"label": "YouTube"
+		},
+		"x": {
+			"id": "x",
+			"url": "https://x.com/fluxgit",
+			"label": "X"
+		},
+		"bluesky": {
+			"id": "bluesky",
+			"url": "https://bsky.app/profile/fluxgit.com",
+			"label": "Bluesky"
+		},
+		"instagram": {
+			"id": "instagram",
+			"url": "https://www.instagram.com/fluxgit",
+			"label": "Instagram"
+		},
+		"linkedin": {
+			"id": "linkedin",
+			"url": "https://www.linkedin.com/company/fluxgit",
+			"label": "LinkedIn"
+		}
+	},
+	"legal": {
+		"privacyPolicy": {
+			"id": "privacyPolicy",
+			"url": "https://fluxgit.notion.site/FluxGit-Privacy-Policy-2f05a4bfdeac802dbd85db29c6d96536",
+			"label": "Privacy Policy"
+		},
+		"termsOfService": {
+			"id": "termsOfService",
+			"url": "https://fluxgit.notion.site/FluxGit-Terms-of-Use-2f05a4bfdeac8062ba2af2d36f0cb3f4",
+			"label": "Terms of Use"
+		}
+	},
+	"events": {
+		"gitmerge": {
+			"id": "gitmerge",
+			"url": "https://git-merge.com",
+			"label": "Git Merge"
+		}
+	},
+	"other": {
+		"youtube-demo": {
+			"id": "youtube-demo",
+			"url": "https://youtu.be/agfyTN3HpRM?si=jVyMeMrWIaMa0Jdp",
+			"label": "YouTube Demo"
+		},
+		"support": {
+			"id": "help",
+			"url": "https://github.com/fluxgitapp/fluxgit/issues/new?template=BLANK_ISSUE",
+			"label": "Submit a ticket"
+		}
+	}
+}

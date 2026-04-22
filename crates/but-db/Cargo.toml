@@ -1,0 +1,37 @@
+[package]
+name = "but-db"
+version = "0.0.0"
+edition.workspace = true
+authors.workspace = true
+publish = false
+rust-version.workspace = true
+
+[lib]
+doctest = false
+
+[features]
+## Support for polling for changes in the database
+poll = ["dep:tokio"]
+
+[dependencies]
+rusqlite = { workspace = true, features = ["chrono"] }
+bitflags.workspace = true
+serde.workspace = true
+anyhow.workspace = true
+chrono = { workspace = true, features = ["serde"] }
+# other things
+tracing.workspace = true
+backoff.workspace = true
+
+tokio = { workspace = true, features = ["rt-multi-thread", "parking_lot", "time", "sync", "macros"], optional = true }
+
+[dev-dependencies]
+tempfile = "3.24.0"
+insta.workspace = true
+
+# for multi-process migration testing.
+[target."cfg(unix)".dev-dependencies]
+libc = "0.2.180"
+
+[lints]
+workspace = true

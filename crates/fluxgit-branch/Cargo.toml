@@ -1,0 +1,30 @@
+[package]
+name = "fluxgit-branch"
+version = "0.0.0"
+edition.workspace = true
+authors.workspace = true
+publish = false
+rust-version.workspace = true
+autotests = false
+
+[lib]
+doctest = false
+
+[dependencies]
+fluxgit-reference.workspace = true
+fluxgit-stack.workspace = true
+
+anyhow.workspace = true
+git2.workspace = true
+gix = { workspace = true, features = [] }
+itertools.workspace = true
+serde.workspace = true
+bstr.workspace = true
+lazy_static = "1.4.0"
+
+[[test]]
+name = "branch"
+path = "tests/mod.rs"
+
+[lints]
+workspace = true

@@ -1,0 +1,75 @@
+name: Build and Release FluxGit
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Build FluxGit
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          PUBLIC_SENTRY_ENVIRONMENT: production
+          PUBLIC_API_BASE_URL: https://fluxgit-api-production.up.railway.app/
+          PUBLIC_POSTHOG_API_KEY: ${{ secrets.PUBLIC_POSTHOG_API_KEY }}
+        run: pnpm tauri build --config crates/fluxgit-tauri/tauri.conf.json
+
+      - name: Upload MSI Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: FluxGit-Windows-MSI
+          path: target/tauri/release/bundle/msi/*.msi
+          retention-days: 30
+
+      - name: Upload NSIS Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: FluxGit-Windows-Setup
+          path: target/tauri/release/bundle/nsis/*.exe
+          retention-days: 30
+
+      - name: Create Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          name: FluxGit ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+          files: |
+            target/tauri/release/bundle/msi/*.msi
+            target/tauri/release/bundle/msi/*.msi.zip
+            target/tauri/release/bundle/nsis/*.exe
+            target/tauri/release/bundle/nsis/*.nsis.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

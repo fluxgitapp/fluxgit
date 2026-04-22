@@ -1,0 +1,27 @@
+[package]
+name = "fluxgit-workspace"
+version = "0.0.0"
+edition.workspace = true
+authors.workspace = true
+publish = false
+rust-version.workspace = true
+autotests = false
+
+[lib]
+doctest = false
+
+[dependencies]
+but-oxidize.workspace = true
+but-core.workspace = true
+but-ctx.workspace = true
+
+fluxgit-stack.workspace = true
+fluxgit-repo.workspace = true
+fluxgit-cherry-pick.workspace = true
+
+anyhow.workspace = true
+gix.workspace = true
+git2.workspace = true
+
+[lints]
+workspace = true

@@ -1,0 +1,627 @@
+name: "Test"
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+
+env:
+  RUST_BACKTRACE: full
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      node: ${{ steps.filter.outputs.node }}
+      rust: ${{ steps.filter.outputs.rust }}
+      ui: ${{ steps.filter.outputs.ui }}
+      but_sdk: ${{ steps.filter.outputs.but_sdk }}
+      docs: ${{ steps.filter.outputs.docs }}
+      but_installer: ${{ steps.filter.outputs.but_installer }}
+      install_script: ${{ steps.filter.outputs.install_script }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - uses: dorny/paths-filter@de90cc6fb38fc0963ad72b210f1f284cd68cea36 # v3
+        id: filter
+        with:
+          filters: |
+            workflows: &workflows
+              - '.github/workflows/**'
+              - '.github/actions/**'
+            docs:
+              - '**/*.md'
+            node:
+              - *workflows
+              - 'apps/**'
+              - 'packages/**'
+              - 'package.json'
+              - 'pnpm-lock.yaml'
+            ui:
+              - 'packages/ui/**'
+            but_sdk:
+              - 'crates/**'
+              - *workflows
+              - 'Cargo.lock'
+              - 'Cargo.toml'
+              - 'package.json'
+              - 'pnpm-lock.yaml'
+              - 'packages/but-sdk/**'
+            common-rust: &rust
+              - *workflows
+              - 'Cargo.lock'
+              - 'Cargo.toml'
+            rust: &any-rust
+              - *rust
+              - 'crates/**'
+            but_installer:
+              - 'Cargo.lock'
+              - 'Cargo.toml'
+              - 'crates/but-installer/**'
+            install_script:
+              - 'scripts/install.sh'
+
+  prettier:
+    needs: changes
+    if: ${{ needs.changes.outputs.node == 'true' || needs.changes.outputs.docs == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/init-env-node
+      - run: pnpm prettier
+
+  generate-ts-definitions:
+    needs: changes
+    if: ${{ needs.changes.outputs.node == 'true' || needs.changes.outputs.rust == 'true' }}
+    runs-on: ubuntu-latest
+    env:
+      CARGO_TERM_COLOR: always
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5 # v2.8.2
+        with:
+          shared-key: ts-def-gen
+          save-if: ${{ github.ref == 'refs/heads/master' }}
+      # Node is needed for the formatting of typescript files.
+      - uses: ./.github/actions/init-env-node
+      - name: Dependencies for 'keyring'
+        run: sudo ./scripts/install-minimal-debian-dependencies.sh
+      - run: ./scripts/generate-ts-definitions-from-rust.sh
+
+  lint-node:
+    needs: changes
+    if: ${{ needs.changes.outputs.node == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/init-env-node
+      - run: pnpm lint
+
+  check-node:
+    needs: changes
+    if: ${{ needs.changes.outputs.node == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/init-env-node
+      - run: pnpm check
+
+  unittest-node:
+    needs: changes
+    if: ${{ needs.changes.outputs.node == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/init-env-node
+      - id: get_playwright_version
+        uses: eviden-actions/get-playwright-version@4ab3bd9361d018d7931275b5106f2290fa54cfb6 # v1
+      - name: Cache playwright binaries
+        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5
+        id: playwright-cache
+        with:
+          path: |
+            ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ steps.get_playwright_version.outputs.playwright-version }}
+      - run: pnpm ui:playwright:install:unit
+        if: ${{ steps.playwright-cache.outputs.cache-hit != 'true' }}
+      - run: pnpm test
+
+  but-sdk-build-check:
+    needs: changes
+    if: ${{ needs.changes.outputs.but_sdk == 'true' }}
+    runs-on: ubuntu-latest
+    env:
+      CARGO_TERM_COLOR: always
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - name: Cache apt archives
+        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5
+        with:
+          path: .apt-cache
+          key: ${{ runner.os }}-apt-but-sdk-${{ hashFiles('scripts/install-minimal-debian-dependencies.sh') }}
+      - name: Install dependencies for but-sdk
+        run: |
+          sudo ./scripts/install-minimal-debian-dependencies.sh "$PWD/.apt-cache"
+          sudo chown -R "$(id -u)":"$(id -g)" "$PWD/.apt-cache"
+      - uses: ./.github/actions/init-env-node
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5 # v2.8.2
+        with:
+          shared-key: but-sdk-build-check
+          save-if: ${{ github.ref == 'refs/heads/master' }}
+      - name: Build but-sdk
+        run: pnpm --filter @fluxgit/but-sdk build
+      - name: Check but-sdk
+        run: pnpm --filter @fluxgit/but-sdk check
+
+  rust-lint:
+    needs: changes
+    if: ${{ needs.changes.outputs.rust == 'true' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+    container:
+      image: ghcr.io/fluxgitapp/ci-base-image@sha256:3eaeae1b07072796a53dc1e7585cdc1f462d0b11d10ecd3685c6fa8082d647dd
+    env:
+      CARGO_TERM_COLOR: always
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5 # v2.8.2
+        with:
+          shared-key: lint
+          save-if: ${{ github.ref == 'refs/heads/master' }}
+      - run: cargo fmt --check --all
+      - run: cargo check --workspace --all-targets
+      - run: |
+          # should work without the "legacy" feature
+          cargo check -p but-testsupport --all-targets
+          cargo check -p but-testsupport --all-targets --features sandbox
+          cargo check -p but-testsupport --all-targets --features sandbox-but-api
+          cargo check -p but-ctx --all-targets
+          cargo check -p but-serde --all-targets
+          cargo check -p but-meta --all-targets
+          cargo check -p but-graph --all-targets
+          cargo check -p but-workspace --all-targets
+          cargo check -p but-api --all-targets
+          cargo check -p but --all-targets
+        name: Special `cargo check` runs
+        env:
+          RUSTFLAGS: "--deny warnings"
+      - name: cargo clippy
+        run: |
+          rustup component add clippy
+          cargo clippy --workspace --all-targets -- -D warnings
+
+  # Find unused cargo dependencies
+  cargo-machete:
+    needs: changes
+    if: ${{ needs.changes.outputs.rust == 'true' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - name: Install cargo-machete
+        run: cargo install --locked cargo-machete --version 0.9.1
+      - name: Run cargo-machete on workspace
+        run: cargo machete
+
+  cargo-deny:
+    needs: changes
+    if: ${{ needs.changes.outputs.rust == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - uses: EmbarkStudios/cargo-deny-action@3fd3802e88374d3fe9159b834c7714ec57d6c979 # v2.0.15
+        with:
+          command: check bans licenses sources
+
+  cargo-doc:
+    needs: changes
+    if: ${{ needs.changes.outputs.rust == 'true' }}
+    runs-on: ubuntu-latest
+    env:
+      CARGO_TERM_COLOR: always
+      RUSTDOCFLAGS: -D warnings
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5 # v2.8.2
+        with:
+          shared-key: cargo-doc
+          save-if: ${{ github.ref == 'refs/heads/master' }}
+      - name: Dependencies for 'keyring'
+        run: sudo ./scripts/install-minimal-debian-dependencies.sh
+      - name: Check documentation
+        run: cargo doc --workspace --no-deps --exclude fluxgit-tauri
+
+  rust-test:
+    needs: changes
+    if: ${{ needs.changes.outputs.rust == 'true' }}
+    runs-on: ubuntu-latest
+    env:
+      CARGO_TERM_COLOR: always
+      GITBUTLER_TESTS_NO_CLEANUP: "1"
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5 # v2.8.2
+        with:
+          shared-key: cargo-test-no-tauri
+          save-if: ${{ github.ref == 'refs/heads/master' }}
+      - name: Dependencies for 'keyring'
+        run: sudo ./scripts/install-minimal-debian-dependencies.sh
+      - run: cargo test --workspace --exclude fluxgit-tauri --exclude but-server
+      # It's intentional to use 'name equals run-script' so it's easy to re-run locally on failure.
+      - run: cargo test -p but
+      - run: cargo test -p but-server
+      - name: test vendored
+        run: |
+          set -x
+          (cd crates/fluxgit-filemonitor/vendor/debouncer && cargo test)
+          (cd crates/but/vendor/cli-prompts && cargo test)
+
+  rust-test-tauri:
+    needs: changes
+    if: ${{ needs.changes.outputs.rust == 'true' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+    container:
+      image: ghcr.io/fluxgitapp/ci-base-image@sha256:3eaeae1b07072796a53dc1e7585cdc1f462d0b11d10ecd3685c6fa8082d647dd
+    env:
+      CARGO_TERM_COLOR: always
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5 # v2.8.2
+        with:
+          shared-key: cargo-test-tauri
+          save-if: ${{ github.ref == 'refs/heads/master' }}
+      - run: |
+          set -e
+          cargo check -p fluxgit-tauri --no-default-features
+          for feature in devtools custom-protocol error-context packaged-but-distribution builtin-but; do
+            cargo check -p fluxgit-tauri --no-default-features --features "$feature"
+          done
+        name: Test Tauri and Check Tauri App Features
+
+  check-rust-windows:
+    needs: changes
+    runs-on: windows-latest
+    if: ${{ needs.changes.outputs.rust == 'true' }}
+    env:
+      CARGO_TERM_COLOR: always
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5 # v2.8.2
+        with:
+          shared-key: cargo-test
+          save-if: ${{ github.ref == 'refs/heads/master' }}
+      - name: "cargo check"
+        run: cargo check --workspace --all-targets --features windows
+
+  build-installer:
+    needs: changes
+    if: ${{ needs.changes.outputs.but_installer == 'true' }}
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: macos-15 # [macOs, ARM64] - default target
+            artifact_id: macos-15-aarch64
+            target: ""
+          - platform: macos-15 # [macOs, x64] - cross-compile
+            artifact_id: macos-15-x86_64
+            target: x86_64-apple-darwin
+          - platform: ubuntu-22.04 # [linux, x64]
+            artifact_id: linux-x86_64
+            target: ""
+          - platform: ubuntu-22.04-arm # [linux, ARM64]
+            artifact_id: linux-aarch64
+            target: ""
+
+    runs-on: ${{ matrix.platform }}
+
+    env:
+      CARGO_TERM_COLOR: always
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - name: Set Cargo build target to ${{ matrix.target }}
+        shell: bash
+        if: matrix.target != ''
+        run: |
+          echo "CARGO_BUILD_TARGET=${{ matrix.target }}" >> $GITHUB_ENV
+          rustup target add ${{ matrix.target }}
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5 # v2.8.2
+        with:
+          shared-key: installer
+          save-if: ${{ github.ref == 'refs/heads/master' }}
+      - name: Build installer for x86_64
+        run: cargo build --release -p but-installer
+      - name: Verify binaries
+        run: |
+          test -x target/${{matrix.target}}/release/but-installer
+          file target/${{matrix.target}}/release/but-installer
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: "but-installer-${{ matrix.artifact_id }}-${{ github.run_number }}"
+          path: target/${{matrix.target}}/release/but-installer
+          if-no-files-found: error
+          retention-days: 7
+
+  fetch-published-versions:
+    needs: changes
+    if: ${{ needs.changes.outputs.install_script == 'true' || needs.changes.outputs.but_installer == 'true' }}
+    runs-on: ubuntu-22.04
+    permissions: {}
+    outputs:
+      release_version: ${{ steps.fetch.outputs.release_version }}
+      nightly_version: ${{ steps.fetch.outputs.nightly_version }}
+    steps:
+      - name: Fetch latest release and nightly versions
+        id: fetch
+        run: |
+          echo "release_version=$(curl -s https://app.fluxgit.com/releases | jq -r .version)" >> $GITHUB_OUTPUT
+          echo "nightly_version=$(curl -s https://app.fluxgit.com/releases/nightly | jq -r .version)" >> $GITHUB_OUTPUT
+
+  validate-install-script:
+    needs:
+      - changes
+      - fetch-published-versions
+    if: ${{ needs.changes.outputs.install_script == 'true' }}
+    permissions:
+      contents: read
+    env:
+      LATEST_RELEASE_VERSION: ${{ needs.fetch-published-versions.outputs.release_version }}
+      LATEST_NIGHTLY_VERSION: ${{ needs.fetch-published-versions.outputs.nightly_version }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: macos-15 # [macOs, ARM64] - default target
+          - platform: ubuntu-22.04 # [linux, x64]
+          - platform: ubuntu-22.04-arm # [linux, ARM64]
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - name: Install release
+        run: ./scripts/install.sh
+      - name: Validate release version
+        run: but --version | grep "but $LATEST_RELEASE_VERSION"
+      - name: Install nightly
+        run: ./scripts/install.sh nightly
+      - name: Validate nightly version
+        run: but --version | grep "but $LATEST_NIGHTLY_VERSION"
+
+  validate-installer:
+    needs:
+      - build-installer
+      - fetch-published-versions
+    permissions:
+      contents: none
+    env:
+      LATEST_RELEASE_VERSION: ${{ needs.fetch-published-versions.outputs.release_version }}
+      LATEST_NIGHTLY_VERSION: ${{ needs.fetch-published-versions.outputs.nightly_version }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: macos-15 # [macOs, ARM64] - default target
+            artifact_id: macos-15-aarch64
+          - platform: macos-15 # [macOs, x64] - cross-compile
+            artifact_id: macos-15-x86_64
+          - platform: ubuntu-22.04 # [linux, x64]
+            artifact_id: linux-x86_64
+          - platform: ubuntu-22.04-arm # [linux, ARM64]
+            artifact_id: linux-aarch64
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - name: Download ${{ matrix.artifact_id }} installer
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: "but-installer-${{ matrix.artifact_id }}-${{ github.run_number }}"
+          path: .
+      - run: chmod +x ./but-installer
+      - name: Install release
+        run: ./but-installer
+      - name: Validate release version
+        run: but --version | grep "but $LATEST_RELEASE_VERSION"
+      - name: Install nightly
+        run: ./but-installer nightly
+      - name: Validate nightly version
+        run: but --version | grep "but $LATEST_NIGHTLY_VERSION"
+
+  publish-installer:
+    needs: build-installer
+    if: ${{ github.ref == 'refs/heads/master' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - name: Download macOS x86_64 installer
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: "but-installer-macos-15-x86_64-${{ github.run_number }}"
+          path: s3-upload/macos/x86_64
+      - name: Download macOS aarch64 installer
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: "but-installer-macos-15-aarch64-${{ github.run_number }}"
+          path: s3-upload/macos/aarch64
+      - name: Download Linux x86_64 installer
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: "but-installer-linux-x86_64-${{ github.run_number }}"
+          path: s3-upload/linux/x86_64
+      - name: Download Linux aarch64 installer
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: "but-installer-linux-aarch64-${{ github.run_number }}"
+          path: s3-upload/linux/aarch64
+      - name: Make binaries executable
+        run: |
+          find ./s3-upload -name 'but-installer' | xargs chmod +x
+      - name: Upload to S3
+        uses: shallwefootball/s3-upload-action@4350529f410221787ccf424e50133cbc1b52704e # master
+        with:
+          aws_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws_bucket: "releases.fluxgit.com"
+          source_dir: "s3-upload/"
+          destination_dir: "installers/${{ github.sha }}"
+      - name: Upload to S3 (latest)
+        uses: shallwefootball/s3-upload-action@4350529f410221787ccf424e50133cbc1b52704e # master
+        with:
+          aws_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws_bucket: "releases.fluxgit.com"
+          source_dir: "s3-upload/"
+          destination_dir: "installers/latest"
+
+  check-rust:
+    if: always()
+    needs:
+      - changes
+      - check-rust-windows
+      - rust-test
+      - rust-test-tauri
+      - rust-lint
+      - cargo-machete
+      - cargo-doc
+      - build-installer
+      - but-sdk-build-check
+    runs-on: ubuntu-latest
+    env:
+      CARGO_TERM_COLOR: always
+    steps:
+      - name: Decide whether the needed jobs succeeded or failed
+        uses: re-actors/alls-green@05ac9388f0aebcb5727afa17fcccfecd6f8ec5fe # release/v1
+        with:
+          allowed-skips: ${{ toJSON(needs) }}
+          jobs: ${{ toJSON(needs) }}
+
+  # Check that all `actions/checkout` in CI jobs have `persist-credentials: false`.
+  check-no-persist-credentials:
+    runs-on: ubuntu-latest
+
+    env:
+      GLOB: .github/workflows/*.@(yaml|yml)
+
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+          sparse-checkout: ".github/workflows"
+      - name: Generate workflows list to scan
+        run: |
+          shopt -s extglob
+          printf '%s\n' ${{ env.GLOB }} | grep -v .github/workflows/publish.yaml >workflows.list
+          cat workflows.list
+          echo "Note that publish.yaml is excluded until it's ensured to not need this feature"
+      - name: Scan workflows
+        run: |
+          shopt -s extglob
+          yq '.jobs.*.steps[]
+            | select(.uses == "actions/checkout@*" and .with.["persist-credentials"]? != false)
+            | {"file": filename, "line": line, "name": (.name // .uses)}
+            | .file + ":" + (.line | tostring) + ": " + .name
+          ' -- $(cat workflows.list) >query-output.txt
+          cat query-output.txt
+          test -z "$(<query-output.txt)"  # Report failure if we found anything
+  test-ui:
+    needs: changes
+    if: ${{ needs.changes.outputs.ui == 'true' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+    container:
+      image: ghcr.io/fluxgitapp/ci-base-image@sha256:3eaeae1b07072796a53dc1e7585cdc1f462d0b11d10ecd3685c6fa8082d647dd
+    env:
+      CARGO_TERM_COLOR: always
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/init-env-node
+      - id: get_playwright_version
+        uses: eviden-actions/get-playwright-version@4ab3bd9361d018d7931275b5106f2290fa54cfb6 # v1
+      - name: cache playwright binaries
+        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5
+        id: playwright-cache
+        with:
+          path: |
+            ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-with-webkit-${{ steps.get_playwright_version.outputs.playwright-version }}
+      - run: pnpm ui:playwright:install:ct
+        if: ${{ steps.playwright-cache.outputs.cache-hit != 'true' }}
+      - name: run playwright tests
+        run: pnpm test:ct
+        if: ${{ github.ref != 'refs/heads/master' }}
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        if: ${{ !cancelled() }}
+        with:
+          name: playwright-report
+          path: |
+            ./packages/ui/playwright-report/
+            ./packages/ui/test-results/
+          retention-days: 30

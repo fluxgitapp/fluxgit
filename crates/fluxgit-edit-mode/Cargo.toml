@@ -1,0 +1,43 @@
+[package]
+name = "fluxgit-edit-mode"
+version = "0.0.0"
+edition.workspace = true
+authors.workspace = true
+publish = false
+rust-version.workspace = true
+
+[lib]
+doctest = false
+
+[dependencies]
+but-workspace.workspace = true
+but-rebase.workspace = true
+but-core.workspace = true
+but-oxidize.workspace = true
+but-ctx.workspace = true
+
+fluxgit-commit.workspace = true
+fluxgit-repo.workspace = true
+fluxgit-operating-modes.workspace = true
+fluxgit-branch-actions.workspace = true
+fluxgit-oplog.workspace = true
+fluxgit-stack.workspace = true
+fluxgit-cherry-pick.workspace = true
+fluxgit-workspace.workspace = true
+
+git2.workspace = true
+gix.workspace = true
+anyhow.workspace = true
+bstr.workspace = true
+serde.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+fluxgit-testsupport.workspace = true
+but-testsupport.workspace = true
+insta.workspace = true
+
+tempfile.workspace = true
+
+[lints]
+workspace = true

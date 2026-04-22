@@ -1,0 +1,27 @@
+[package]
+name = "but-feedback"
+version = "0.0.0"
+edition.workspace = true
+authors.workspace = true
+publish = false
+rust-version.workspace = true
+
+[lib]
+test = false
+doctest = false
+
+[dependencies]
+but-graph.workspace = true
+but-ctx = { workspace = true, features = ["legacy"] }
+
+anyhow.workspace = true
+# Version must match the one in `tauri plugin updater` to avoid duplication.
+zip = { version = "4", default-features = false, features = ["bzip2"] }
+walkdir = "2.5.0"
+chrono.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+
+[lints]
+workspace = true

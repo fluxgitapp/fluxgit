@@ -1,0 +1,16 @@
+[package]
+name = "but-error"
+version = "0.0.0"
+edition.workspace = true
+authors.workspace = true
+publish = false
+rust-version.workspace = true
+
+[lib]
+doctest = true
+
+[dependencies]
+anyhow.workspace = true
+
+[lints]
+workspace = true

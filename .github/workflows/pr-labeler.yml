@@ -1,0 +1,21 @@
+# https://github.com/actions/labeler#create-workflow
+
+name: Label Pull Requests
+on:
+  pull_request:
+
+jobs:
+  labeler:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    permissions:
+      contents: read
+      pull-requests: write
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+          repository: "fluxgitapp/fluxgit"
+      - uses: actions/labeler@634933edcd8ababfe52f92936142cc22ac488b1b # v6
+        with:
+          configuration-path: ".github/pr-labeler.yml"
