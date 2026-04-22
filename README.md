@@ -102,6 +102,17 @@ fluxgit/
 │   │   │       │   └── providerStatus.ts           # Status dot color logic
 │   │   │       └── bootstrap/
 │   │   │           └── deps.ts                 # DI registration
+│   │
+│   ├── web/              # SvelteKit marketing + cloud web app
+│   │   └── src/routes/
+│   │       ├── (home)/   # Landing page (Hero, Features, AI, Changelog)
+│   │       ├── (app)/    # Cloud app (login, profile, orgs, reviews)
+│   │       ├── downloads/# Download page (macOS, Linux, Windows)
+│   │       ├── releases/ # Release notes (same as downloads, used by CLI)
+│   │       ├── nightly/  # Nightly builds page
+│   │       ├── cli/      # CLI documentation page
+│   │       └── install.sh/ # Shell install script endpoint
+│   │
 │   └── lite/             # Electron lite version
 │
 ├── crates/               # Rust backend (Tauri)
@@ -119,6 +130,50 @@ fluxgit/
 └── fluxgit-api/          # OAuth backend (Node.js + Express)
     └── src/index.js
 ```
+
+---
+
+## FluxGit Web App
+
+The web app (`apps/web`) is a SvelteKit application deployed on Vercel. It serves two purposes:
+
+### 1. Marketing Website
+The public-facing landing page at `fluxgit.com`:
+- **Hero** — tagline and download CTA
+- **Main Features** — stack-based branch management, unlimited undo, agent integrations
+- **AI Features** — showcase of AI-powered workflows
+- **Feature Updates** — latest additions
+- **Social Quotes** — community testimonials
+- **Changelog** — release history pulled from GitHub releases
+- **Blog Highlights** — latest posts from Ghost CMS
+
+### 2. Downloads & Releases
+- `/downloads` — latest release with platform-specific download cards:
+  - macOS: Apple Silicon + Intel
+  - Linux: `.deb` and `.rpm` for x86-64 and ARM64, plus CLI binary
+  - Windows: MSI installer
+- `/releases` — same page, used by the CLI after updates to show release notes
+- `/nightly` — nightly build downloads
+
+### 3. Cloud App (authenticated)
+Routes under `/(app)/`:
+- `/login` — GitHub OAuth login
+- `/profile` — user profile management
+- `/organizations` — org management
+- `/[ownerSlug]/[projectSlug]/reviews` — code review interface
+- `/signup` — account creation
+
+### 4. CLI Page
+- `/cli` — CLI documentation with features, AI features, and scripts
+
+### 5. Install Script
+- `/install.sh` — shell script endpoint for `curl | sh` installation
+
+### Tech
+- **Framework:** SvelteKit with `@sveltejs/adapter-vercel`
+- **CMS:** Ghost Content API for blog posts
+- **Analytics:** Sentry
+- **Deployment:** Vercel
 
 ---
 
@@ -158,6 +213,13 @@ Repository: `https://github.com/fluxgitapp/fluxgit-api`
 - **Styling:** PostCSS with CSS custom properties
 - **State:** Redux (via `@reduxjs/toolkit`) + Svelte 5 reactive state
 - **Build:** Vite + Turborepo
+
+### Web App
+- **Framework:** SvelteKit with `@sveltejs/adapter-vercel`
+- **Deployment:** Vercel
+- **CMS:** Ghost Content API (blog/changelog)
+- **Markdown:** `svelte-exmarkdown` + `marked`
+- **Syntax highlighting:** `highlight.js`
 
 ### Backend (Rust)
 - **Language:** Rust (stable)
@@ -280,5 +342,5 @@ This triggers the CI build and automatically creates a GitHub Release at `https:
 ---
 
 <div align="center">
-  Built with ❤️ by <a href="https://github.com/fluxgitapp">FluxGit</a>
+  Built with ❤️ by <a href="https://github.com/fluxgitapp">FluxGit & SHafian Khan</a>
 </div>
