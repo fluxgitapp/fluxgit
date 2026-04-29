@@ -123,22 +123,6 @@ export function initDependencies(args: {
 	const tokenMemoryService = new TokenMemoryService();
 	const httpClient = new HttpClient(window.fetch, PUBLIC_API_BASE_URL, tokenMemoryService.token);
 
-	// Wrap fetch to suppress 401/404 errors from cloud services when not logged in
-	// These services (FeedService, CloudUserService, OrganizationService) fire on startup
-	// and fail with "Failed to fetch" when the user isn't authenticated.
-	const guardedFetch: typeof window.fetch = async (input, init) => {
-		try {
-			return await window.fetch(input, init);
-		} catch (err) {
-			// Return a fake 401 response instead of throwing — prevents toast errors
-			return new Response(JSON.stringify({ error: 'Not authenticated' }), {
-				status: 401,
-				headers: { 'Content-Type': 'application/json' }
-			});
-		}
-	};
-	const guardedHttpClient = new HttpClient(guardedFetch, PUBLIC_API_BASE_URL, tokenMemoryService.token);
-
 	// ============================================================================
 	// FORGE CLIENTS & INTEGRATIONS
 	// ============================================================================
@@ -182,7 +166,7 @@ export function initDependencies(args: {
 	// ============================================================================
 
 	const aiPromptService = new AIPromptService();
-	const aiService = new AIService(gitConfig, secretsService, guardedHttpClient, tokenMemoryService);
+	const aiService = new AIService(gitConfig, secretsService, httpClient, tokenMemoryService);
 	const aiProviderService = new AIProviderService();
 	// Load settings async — non-blocking, settings will be available before user interaction
 	aiProviderService.load().catch(console.error);
@@ -290,15 +274,15 @@ export function initDependencies(args: {
 	// FEEDS & NOTIFICATIONS
 	// ============================================================================
 
-	const feedService = new FeedService(guardedHttpClient, appState.appDispatch);
+	const feedService = new FeedService(httpClient, appState.appDispatch);
 
 	// ============================================================================
 	// CLOUD SERVICES
 	// ============================================================================
 
-	const uploadsService = new UploadsService(guardedHttpClient);
-	const organizationService = new OrganizationService(guardedHttpClient, appState.appDispatch);
-	const cloudUserService = new CloudUserService(guardedHttpClient, appState.appDispatch);
+	const uploadsService = new UploadsService(httpClient);
+	const organizationService = new OrganizationService(httpClient, appState.appDispatch);
+	const cloudUserService = new CloudUserService(httpClient, appState.appDispatch);
 
 	// ============================================================================
 	// UI & INTERACTION
