@@ -1,7 +1,7 @@
 {
 	"productName": "FluxGit",
 	"identifier": "com.internal.fluxgit",
-	"version": "1.0.0",
+	"version": "1.1.0",
 	"build": {
 		"beforeDevCommand": "pnpm dev:internal-tauri",
 		"beforeBuildCommand": "pnpm build:desktop",
