@@ -342,5 +342,5 @@ This triggers the CI build and automatically creates a GitHub Release at `https:
 ---
 
 <div align="center">
-  Built with ❤️ by <a href="https://github.com/fluxgitapp">FluxGit & SHafian Khan</a>
+  Built with ❤️ by <a href="https://github.com/fluxgitapp">FluxGit & Shafian Khan</a>
 </div>

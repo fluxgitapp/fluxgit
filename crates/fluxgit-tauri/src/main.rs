@@ -468,6 +468,31 @@ fn migrate_projects() -> anyhow::Result<()> {
     Ok(())
 }
 
+/// Decode a percent-encoded URL component (e.g. %20 → space).
+fn urlencoding_decode(s: &str) -> String {
+    let mut result = String::with_capacity(s.len());
+    let bytes = s.as_bytes();
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i] == b'%' && i + 2 < bytes.len() {
+            if let Ok(hex) = std::str::from_utf8(&bytes[i + 1..i + 3]) {
+                if let Ok(byte) = u8::from_str_radix(hex, 16) {
+                    result.push(byte as char);
+                    i += 3;
+                    continue;
+                }
+            }
+        } else if bytes[i] == b'+' {
+            result.push(' ');
+            i += 1;
+            continue;
+        }
+        result.push(bytes[i] as char);
+        i += 1;
+    }
+    result
+}
+
 /// Launch a shell as interactive login shell, similar to what a login terminal would do if we are not already in a terminal.
 ///
 /// That way, each process launched by the backend will act similar to what users would get in their terminal,

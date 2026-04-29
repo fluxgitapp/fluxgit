@@ -106,7 +106,7 @@ export const PROVIDER_CATALOGUE = {
 		],
 		defaultModel: 'google/gemma-4-e4b',
 		requiresApiKey: false,
-		endpoint: 'http://127.0.0.1:1234/v1/chat/completions',
+		endpoint: 'http://127.0.0.1:1234/v1',
 		setupUrl: 'https://lmstudio.ai',
 		helperText:
 			'Tip: Download Gemma 4 E4B from LMStudio for best results. Supports code generation, reasoning, and 128K context window. Apache 2.0 license — free for any use.',

@@ -174,6 +174,16 @@ export class AIProviderService {
 		return resolved;
 	}
 
+	/** Strip any path from a base URL — only keep scheme + host + port */
+	private static cleanBaseUrl(url: string): string {
+		try {
+			const u = new URL(url);
+			return `${u.protocol}//${u.host}`;
+		} catch {
+			return url;
+		}
+	}
+
 	getActiveClient(): AIProviderClient | null {
 		const { activeProvider, activeModel, providerKeys } = this.settings;
 
@@ -189,7 +199,9 @@ export class AIProviderService {
 			if (activeProvider === 'lmstudio' && typeof localStorage !== 'undefined') {
 				const customUrl = localStorage.getItem('lmstudio_url');
 				if (customUrl) {
-					endpoint = `${customUrl}/v1/chat/completions`;
+					// Strip any path, then append /v1 for OpenAI-compat
+					const base = AIProviderService.cleanBaseUrl(customUrl);
+					endpoint = `${base}/v1`;
 				}
 			}
 			return new OpenAICompatibleClient(endpoint, '', model, activeProvider, true);
@@ -219,7 +231,16 @@ export class AIProviderService {
 		let client: AIProviderClient;
 
 		if (meta.isLocal) {
-			client = new OpenAICompatibleClient(meta.endpoint!, '', resolvedModel, provider, true);
+			let endpoint = meta.endpoint!;
+			// For LMStudio, respect the user-configured URL stored in localStorage
+			if (provider === 'lmstudio' && typeof localStorage !== 'undefined') {
+				const customUrl = localStorage.getItem('lmstudio_url');
+				if (customUrl) {
+					const base = AIProviderService.cleanBaseUrl(customUrl);
+					endpoint = `${base}/v1`;
+				}
+			}
+			client = new OpenAICompatibleClient(endpoint, '', resolvedModel, provider, true);
 		} else {
 			switch (provider) {
 				case 'gemini':
@@ -240,7 +261,11 @@ export class AIProviderService {
 		}
 
 		try {
-			await client.generateCommitMessage('test');
+			// Use a minimal prompt for connection test — avoids long generation on slow local models
+			await client.generateAgentResponse(
+				[{ role: 'user', content: 'Reply with one word: ready' }],
+				{ repoPath: '', currentBranch: '' }
+			);
 			await this.saveTestStatus(provider, 'passed');
 			return true;
 		} catch {

@@ -43,15 +43,32 @@
 	let ollamaModels: string[] = $state([]);
 
 	// Configurable LMStudio URL (persisted in localStorage)
-	let lmstudioUrl = $state(
-		typeof localStorage !== 'undefined'
-			? (localStorage.getItem('lmstudio_url') ?? 'http://127.0.0.1:1234')
-			: 'http://127.0.0.1:1234'
-	);
+	// Migrate: strip any path suffix — we only want the base URL (e.g. http://127.0.0.1:1234)
+	function getStoredLmstudioUrl(): string {
+		if (typeof localStorage === 'undefined') return 'http://127.0.0.1:1234';
+		let stored = localStorage.getItem('lmstudio_url') ?? 'http://127.0.0.1:1234';
+		// Strip any path after the port — only keep scheme + host + port
+		try {
+			const u = new URL(stored);
+			stored = `${u.protocol}//${u.host}`;
+			localStorage.setItem('lmstudio_url', stored);
+		} catch {
+			stored = 'http://127.0.0.1:1234';
+			localStorage.setItem('lmstudio_url', stored);
+		}
+		return stored;
+	}
+	let lmstudioUrl = $state(getStoredLmstudioUrl());
 
 	$effect(() => {
 		if (typeof localStorage !== 'undefined') {
-			localStorage.setItem('lmstudio_url', lmstudioUrl);
+			// Always persist only the base URL (scheme + host + port), no path
+			try {
+				const u = new URL(lmstudioUrl);
+				localStorage.setItem('lmstudio_url', `${u.protocol}//${u.host}`);
+			} catch {
+				localStorage.setItem('lmstudio_url', lmstudioUrl);
+			}
 		}
 	});
 
@@ -101,12 +118,16 @@
 			ollamaStatus = 'offline';
 		}
 
-		// Check LMStudio
+		// Check LMStudio — use no-cors so the preflight is skipped.
+		// With no-cors the response type is 'opaque' (status=0), but a non-throw means the server is up.
 		try {
 			const res = await fetch(`${lmstudioUrl}/api/v1/models`, {
+				method: 'GET',
+				mode: 'no-cors',
 				signal: AbortSignal.timeout(3000)
 			});
-			lmstudioStatus = res.ok ? 'connected' : 'offline';
+			// opaque response (mode=no-cors) has status 0 but doesn't throw — server is reachable
+			lmstudioStatus = 'connected';
 		} catch {
 			lmstudioStatus = 'offline';
 		}

@@ -5,6 +5,7 @@
 	import AISettingsPanel from "$components/projectSettings/AISettingsPanel.svelte";
 	import AgentSettings from "$components/projectSettings/AgentSettings.svelte";
 	import GeneralSettings from "$components/projectSettings/GeneralSettings.svelte";
+	import StreamRulesSettings from "$components/projectSettings/StreamRulesSettings.svelte";
 	import { projectDisableCodegen } from "$lib/config/config";
 	import {
 		projectSettingsPages,
@@ -46,6 +47,8 @@
 				<AISettingsPanel projectId={data.projectId} />
 			{:else if currentPage.id === "agent"}
 				<AgentSettings />
+			{:else if currentPage.id === "rules"}
+				<StreamRulesSettings projectId={data.projectId} />
 			{:else if currentPage.id === "experimental"}
 				<PreferencesForm projectId={data.projectId} />
 			{:else}
