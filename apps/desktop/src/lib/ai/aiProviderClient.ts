@@ -1,4 +1,4 @@
-export type AIProvider = 'gemini' | 'mistral' | 'grok' | 'deepseek';
+export type AIProvider = 'gemini' | 'mistral' | 'grok' | 'deepseek' | 'ollama' | 'lmstudio';
 
 export type ProviderTestStatus = 'untested' | 'passed' | 'failed';
 

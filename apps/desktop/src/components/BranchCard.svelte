@@ -3,6 +3,7 @@
 	import BranchDividerLine from "$components/BranchDividerLine.svelte";
 	import BranchHeader from "$components/BranchHeader.svelte";
 	import BranchHeaderContextMenu from "$components/BranchHeaderContextMenu.svelte";
+	import BranchIntelligence from "$components/BranchIntelligence.svelte";
 	import CardOverlay from "$components/CardOverlay.svelte";
 	import ChecksPolling from "$components/ChecksPolling.svelte";
 	import CreateReviewBox from "$components/CreateReviewBox.svelte";
@@ -90,6 +91,9 @@
 	const uiState = inject(UI_STATE);
 	const stackService = inject(STACK_SERVICE);
 	const forge = inject(DEFAULT_FORGE_FACTORY);
+
+	// Branch Intelligence panel state
+	let intelligenceOpen = $state(false);
 
 	const prService = $derived(forge.current.prService);
 	const prUnit = $derived(prService?.unit);
@@ -235,6 +239,16 @@
 					{#if args.buttons}
 						{@render args.buttons()}
 					{/if}
+					{#if args.type === "stack-branch" && args.stackId}
+						<button
+							class="bi-trigger-btn"
+							type="button"
+							title="Branch Intelligence"
+							onclick={(e) => { e.stopPropagation(); intelligenceOpen = !intelligenceOpen; }}
+						>
+							✨
+						</button>
+					{/if}
 				{/snippet}
 
 				{#snippet emptyState()}
@@ -288,6 +302,16 @@
 				{/snippet}
 			</BranchHeader>
 		</Dropzone>
+		{#if intelligenceOpen && args.type === "stack-branch" && args.stackId}
+			<div class="bi-panel-wrapper">
+				<BranchIntelligence
+					{projectId}
+					stackId={args.stackId}
+					{branchName}
+					onclose={() => (intelligenceOpen = false)}
+				/>
+			</div>
+		{/if}
 	{:else if args.type === "normal-branch"}
 		<BranchHeader
 			{branchName}
@@ -371,5 +395,31 @@
 		&:not(.no-padding) {
 			padding: 12px;
 		}
+	}
+
+	.bi-trigger-btn {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 26px;
+		height: 26px;
+		background: transparent;
+		border: 1px solid var(--clr-border-2);
+		border-radius: 6px;
+		cursor: pointer;
+		font-size: 0.85rem;
+		transition: background 0.12s, border-color 0.12s;
+		flex-shrink: 0;
+	}
+
+	.bi-trigger-btn:hover {
+		background: rgba(6, 182, 212, 0.08);
+		border-color: rgba(6, 182, 212, 0.3);
+	}
+
+	.bi-panel-wrapper {
+		border-top: 1px solid var(--clr-border-2);
+		max-height: 480px;
+		overflow-y: auto;
 	}
 </style>

@@ -29,6 +29,11 @@ export const projectSettingsPages = [
 		icon: "agent",
 	},
 	{
+		id: "rules",
+		label: "Stream Rules",
+		icon: "list",
+	},
+	{
 		id: "experimental",
 		label: "Experimental",
 		icon: "lab",

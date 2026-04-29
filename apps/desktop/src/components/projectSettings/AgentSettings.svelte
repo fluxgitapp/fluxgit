@@ -1,5 +1,6 @@
 <script lang="ts">
 	import ClaudeCheck from "$components/codegen/ClaudeCheck.svelte";
+	import AutomationSettings from "$components/projectSettings/AutomationSettings.svelte";
 	import { SETTINGS_SERVICE } from "$lib/config/appSettingsV2";
 	import { newlineOnEnter } from "$lib/config/uiFeatureFlags";
 	import { inject } from "@fluxgit/core/context";
@@ -152,3 +153,7 @@
 		/>
 	{/snippet}
 </CardGroup.Item>
+
+<Spacer margin={10} dotted />
+
+<AutomationSettings />

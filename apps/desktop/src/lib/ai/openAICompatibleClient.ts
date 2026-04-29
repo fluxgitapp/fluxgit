@@ -21,18 +21,26 @@ export class OpenAICompatibleClient implements AIProviderClient {
 		private baseUrl: string,
 		private apiKey: string,
 		private model: string,
-		private providerName: string
+		private providerName: string,
+		/** If true, skip the Authorization header (for local providers like Ollama/LMStudio) */
+		private skipAuth: boolean = false
 	) {}
 
 	private async chat(messages: Array<{ role: string; content: string }>): Promise<string> {
+		const headers: Record<string, string> = {
+			'Content-Type': 'application/json'
+		};
+
+		// Only add Authorization header for cloud providers that require an API key
+		if (!this.skipAuth && this.apiKey) {
+			headers['Authorization'] = `Bearer ${this.apiKey}`;
+		}
+
 		const response = await fetch(`${this.baseUrl}/chat/completions`, {
 			method: 'POST',
-			headers: {
-				Authorization: `Bearer ${this.apiKey}`,
-				'Content-Type': 'application/json'
-			},
+			headers,
 			body: JSON.stringify({ model: this.model, messages, max_tokens: 1024 }),
-			signal: AbortSignal.timeout(10_000)
+			signal: AbortSignal.timeout(30_000) // longer timeout for local models
 		});
 
 		if (!response.ok) {

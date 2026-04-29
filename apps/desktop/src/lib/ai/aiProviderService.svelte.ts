@@ -4,8 +4,11 @@ import type { Store } from '@tauri-apps/plugin-store';
 import type { AIProvider, AIProviderClient, ProviderTestStatus } from './aiProviderClient';
 import { GeminiProviderClient } from './geminiProviderClient';
 import { OpenAICompatibleClient } from './openAICompatibleClient';
+import { PROVIDER_CATALOGUE } from './providerCatalogue';
 
 export type { AIProvider, ProviderTestStatus };
+
+const ALL_PROVIDERS: AIProvider[] = ['gemini', 'mistral', 'grok', 'deepseek', 'ollama', 'lmstudio'];
 
 export interface AIProviderSettings {
 	activeProvider: AIProvider | null;
@@ -14,6 +17,8 @@ export interface AIProviderSettings {
 	useForAgentChat: boolean;
 	providerKeys: Record<AIProvider, string>;
 	providerTestStatus: Record<AIProvider, ProviderTestStatus>;
+	/** Custom model name for local providers when 'custom' is selected */
+	customModelName: string;
 }
 
 const defaultSettings: AIProviderSettings = {
@@ -21,8 +26,23 @@ const defaultSettings: AIProviderSettings = {
 	activeModel: null,
 	useForCommitMessages: true,
 	useForAgentChat: true,
-	providerKeys: { gemini: '', mistral: '', grok: '', deepseek: '' },
-	providerTestStatus: { gemini: 'untested', mistral: 'untested', grok: 'untested', deepseek: 'untested' }
+	providerKeys: {
+		gemini: '',
+		mistral: '',
+		grok: '',
+		deepseek: '',
+		ollama: '',
+		lmstudio: ''
+	},
+	providerTestStatus: {
+		gemini: 'untested',
+		mistral: 'untested',
+		grok: 'untested',
+		deepseek: 'untested',
+		ollama: 'untested',
+		lmstudio: 'untested'
+	},
+	customModelName: ''
 };
 
 export class AIProviderService {
@@ -38,24 +58,39 @@ export class AIProviderService {
 		const activeModel = await store.get<string | null>('ai.activeModel');
 		const useForCommitMessages = await store.get<boolean>('ai.useForCommitMessages');
 		const useForAgentChat = await store.get<boolean>('ai.useForAgentChat');
+		const customModelName = (await store.get<string>('ai.customModelName')) ?? '';
 
-		const geminiKey = (await store.get<string>('ai.key.gemini')) ?? '';
-		const mistralKey = (await store.get<string>('ai.key.mistral')) ?? '';
-		const grokKey = (await store.get<string>('ai.key.grok')) ?? '';
-		const deepseekKey = (await store.get<string>('ai.key.deepseek')) ?? '';
+		const providerKeys: Record<AIProvider, string> = {
+			gemini: '',
+			mistral: '',
+			grok: '',
+			deepseek: '',
+			ollama: '',
+			lmstudio: ''
+		};
+		const providerTestStatus: Record<AIProvider, ProviderTestStatus> = {
+			gemini: 'untested',
+			mistral: 'untested',
+			grok: 'untested',
+			deepseek: 'untested',
+			ollama: 'untested',
+			lmstudio: 'untested'
+		};
 
-		const geminiStatus = (await store.get<ProviderTestStatus>('ai.testStatus.gemini')) ?? 'untested';
-		const mistralStatus = (await store.get<ProviderTestStatus>('ai.testStatus.mistral')) ?? 'untested';
-		const grokStatus = (await store.get<ProviderTestStatus>('ai.testStatus.grok')) ?? 'untested';
-		const deepseekStatus = (await store.get<ProviderTestStatus>('ai.testStatus.deepseek')) ?? 'untested';
+		for (const p of ALL_PROVIDERS) {
+			providerKeys[p] = (await store.get<string>(`ai.key.${p}`)) ?? '';
+			providerTestStatus[p] =
+				(await store.get<ProviderTestStatus>(`ai.testStatus.${p}`)) ?? 'untested';
+		}
 
 		this.settings = {
 			activeProvider: activeProvider ?? null,
 			activeModel: activeModel ?? null,
 			useForCommitMessages: useForCommitMessages ?? true,
 			useForAgentChat: useForAgentChat ?? true,
-			providerKeys: { gemini: geminiKey, mistral: mistralKey, grok: grokKey, deepseek: deepseekKey },
-			providerTestStatus: { gemini: geminiStatus, mistral: mistralStatus, grok: grokStatus, deepseek: deepseekStatus }
+			providerKeys,
+			providerTestStatus,
+			customModelName
 		};
 
 		// Fallback: if no active provider, check env var for Gemini
@@ -90,15 +125,18 @@ export class AIProviderService {
 		if (update.useForAgentChat !== undefined) {
 			await this.store.set('ai.useForAgentChat', update.useForAgentChat);
 		}
+		if (update.customModelName !== undefined) {
+			await this.store.set('ai.customModelName', update.customModelName);
+		}
 		if (update.providerKeys) {
-			for (const provider of ['gemini', 'mistral', 'grok', 'deepseek'] as AIProvider[]) {
+			for (const provider of ALL_PROVIDERS) {
 				if (update.providerKeys[provider] !== undefined) {
 					await this.store.set(`ai.key.${provider}`, update.providerKeys[provider]);
 				}
 			}
 		}
 		if (update.providerTestStatus) {
-			for (const provider of ['gemini', 'mistral', 'grok', 'deepseek'] as AIProvider[]) {
+			for (const provider of ALL_PROVIDERS) {
 				if (update.providerTestStatus[provider] !== undefined) {
 					await this.store.set(`ai.testStatus.${provider}`, update.providerTestStatus[provider]);
 				}
@@ -126,57 +164,79 @@ export class AIProviderService {
 		await this.store.save();
 	}
 
+	/** Resolve the actual model name — handles 'custom' by falling back to customModelName */
+	private resolveModel(provider: AIProvider, model: string | null): string {
+		const defaultModel = PROVIDER_CATALOGUE[provider].defaultModel;
+		const resolved = model ?? defaultModel;
+		if (resolved === 'custom') {
+			return this.settings.customModelName || defaultModel;
+		}
+		return resolved;
+	}
+
 	getActiveClient(): AIProviderClient | null {
 		const { activeProvider, activeModel, providerKeys } = this.settings;
 
 		if (!activeProvider) return null;
+
+		const meta = PROVIDER_CATALOGUE[activeProvider];
+		const model = this.resolveModel(activeProvider, activeModel);
+
+		// Local providers don't need an API key
+		if (meta.isLocal) {
+			let endpoint = meta.endpoint!;
+			// For LMStudio, use the user-configured URL if available
+			if (activeProvider === 'lmstudio' && typeof localStorage !== 'undefined') {
+				const customUrl = localStorage.getItem('lmstudio_url');
+				if (customUrl) {
+					endpoint = `${customUrl}/v1/chat/completions`;
+				}
+			}
+			return new OpenAICompatibleClient(endpoint, '', model, activeProvider, true);
+		}
 
 		const key = providerKeys[activeProvider];
 		if (!key) return null;
 
 		switch (activeProvider) {
 			case 'gemini':
-				return new GeminiProviderClient(key, activeModel ?? 'gemini-2.5-flash');
+				return new GeminiProviderClient(key, model);
 			case 'mistral':
-				return new OpenAICompatibleClient(
-					'https://api.mistral.ai/v1',
-					key,
-					activeModel ?? 'mistral-small-latest',
-					'mistral'
-				);
+				return new OpenAICompatibleClient('https://api.mistral.ai/v1', key, model, 'mistral');
 			case 'grok':
-				return new OpenAICompatibleClient(
-					'https://api.x.ai/v1',
-					key,
-					activeModel ?? 'grok-2-mini',
-					'grok'
-				);
+				return new OpenAICompatibleClient('https://api.x.ai/v1', key, model, 'grok');
 			case 'deepseek':
-				return new OpenAICompatibleClient(
-					'https://api.deepseek.com',
-					key,
-					activeModel ?? 'deepseek-chat',
-					'deepseek'
-				);
+				return new OpenAICompatibleClient('https://api.deepseek.com', key, model, 'deepseek');
 		}
+
+		return null;
 	}
 
 	async testConnection(provider: AIProvider, apiKey: string, model: string): Promise<boolean> {
+		const meta = PROVIDER_CATALOGUE[provider];
+		const resolvedModel = model === 'custom' ? this.settings.customModelName || meta.defaultModel : model;
+
 		let client: AIProviderClient;
 
-		switch (provider) {
-			case 'gemini':
-				client = new GeminiProviderClient(apiKey, model);
-				break;
-			case 'mistral':
-				client = new OpenAICompatibleClient('https://api.mistral.ai/v1', apiKey, model, 'mistral');
-				break;
-			case 'grok':
-				client = new OpenAICompatibleClient('https://api.x.ai/v1', apiKey, model, 'grok');
-				break;
-			case 'deepseek':
-				client = new OpenAICompatibleClient('https://api.deepseek.com', apiKey, model, 'deepseek');
-				break;
+		if (meta.isLocal) {
+			client = new OpenAICompatibleClient(meta.endpoint!, '', resolvedModel, provider, true);
+		} else {
+			switch (provider) {
+				case 'gemini':
+					client = new GeminiProviderClient(apiKey, resolvedModel);
+					break;
+				case 'mistral':
+					client = new OpenAICompatibleClient('https://api.mistral.ai/v1', apiKey, resolvedModel, 'mistral');
+					break;
+				case 'grok':
+					client = new OpenAICompatibleClient('https://api.x.ai/v1', apiKey, resolvedModel, 'grok');
+					break;
+				case 'deepseek':
+					client = new OpenAICompatibleClient('https://api.deepseek.com', apiKey, resolvedModel, 'deepseek');
+					break;
+				default:
+					return false;
+			}
 		}
 
 		try {

@@ -5,6 +5,8 @@ import {
 } from "$lib/ai/promptService";
 import { AIProviderService, AI_PROVIDER_SERVICE } from "$lib/ai/aiProviderService.svelte";
 import { AIService, AI_SERVICE } from "$lib/ai/service";
+import { AutomationSettingsService, AUTOMATION_SETTINGS_SERVICE } from "$lib/automation/automationSettings.svelte";
+import { QuickWorkflowService, QUICK_WORKFLOW_SERVICE } from "$lib/automation/quickWorkflow.svelte";
 import { EVENT_CONTEXT, EventContext } from "$lib/analytics/eventContext";
 import { POSTHOG_WRAPPER, PostHogWrapper } from "$lib/analytics/posthog";
 import { type IBackend } from "$lib/backend";
@@ -168,6 +170,8 @@ export function initDependencies(args: {
 	const aiProviderService = new AIProviderService();
 	// Load settings async — non-blocking, settings will be available before user interaction
 	aiProviderService.load().catch(console.error);
+	const automationSettingsService = new AutomationSettingsService();
+	automationSettingsService.load().catch(console.error);
 	const claudeCodeService = new ClaudeCodeService(clientState["backendApi"]);
 
 	// ============================================================================
@@ -224,6 +228,12 @@ export function initDependencies(args: {
 	const focusManager = new FocusManager(fModeManager);
 	const historyService = new HistoryService(backend, clientState["backendApi"]);
 	const oplogService = new OplogService(clientState["backendApi"]);
+	const quickWorkflowService = new QuickWorkflowService(
+		historyService,
+		stackService,
+		aiProviderService,
+		automationSettingsService,
+	);
 	const commitAnalytics = new CommitAnalytics(
 		stackService,
 		uiState,
@@ -318,6 +328,7 @@ export function initDependencies(args: {
 		[AI_PROMPT_SERVICE, aiPromptService],
 		[AI_PROVIDER_SERVICE, aiProviderService],
 		[AI_SERVICE, aiService],
+		[AUTOMATION_SETTINGS_SERVICE, automationSettingsService],
 		[APP_DISPATCH, appState.appDispatch],
 		[APP_STATE, appState],
 		[BACKEND, backend],
@@ -361,6 +372,7 @@ export function initDependencies(args: {
 		[PROJECTS_SERVICE, projectsService],
 		[PROMPT_SERVICE, promptService],
 		[ATTACHMENT_SERVICE, attachmentService],
+		[QUICK_WORKFLOW_SERVICE, quickWorkflowService],
 		[REMOTES_SERVICE, remotesService],
 		[RESIZE_SYNC, resizeSync],
 		[RULES_SERVICE, rulesService],
