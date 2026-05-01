@@ -113,9 +113,9 @@ fluxgit-edit-mode = { workspace = true, optional = true }
 fluxgit-operating-modes = { workspace = true, optional = true }
 fluxgit-oplog = { workspace = true, optional = true }
 fluxgit-git = { workspace = true, optional = true }
-tauri = { version = "^2.9.5", features = ["unstable"], optional = true } # For the #[tauri::command(async)] macro only
-napi = { version = "3.0.0", features = ["serde-json", "tokio_rt"], optional = true }
-napi-derive = { version = "3.0.0", optional = true }
+tauri = { version = "^2.10.3", features = ["unstable"], optional = true } # For the #[tauri::command(async)] macro only
+napi = { version = "3.8.5", features = ["serde-json", "tokio_rt"], optional = true }
+napi-derive = { version = "3.5.4", optional = true }
 boolean-enums = { version = "0.4.1", features = ["serde"] }
 bstr = { workspace = true }
 schemars.workspace = true
@@ -131,7 +131,7 @@ git2.workspace = true
 open.workspace = true
 url = { version = "2.5", optional = true }
 uuid.workspace = true
-which = "8.0.0"
+which = "8.0.2"
 
 [dev-dependencies]
 insta.workspace = true
