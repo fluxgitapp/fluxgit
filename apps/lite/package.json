@@ -33,16 +33,16 @@
 		}
 	},
 	"dependencies": {
-		"@tanstack/react-router": "^1.160.2",
-		"react": "^19.2.4",
-		"react-dom": "^19.2.4",
+		"@tanstack/react-router": "^1.168.25",
+		"react": "^19.2.5",
+		"react-dom": "^19.2.5",
 		"@fluxgit/but-sdk": "workspace:*"
 	},
 	"devDependencies": {
-		"@types/node": "^22.19.11",
+		"@types/node": "^22.19.17",
 		"@types/react": "^19.2.14",
 		"@types/react-dom": "^19.1.7",
-		"@vitejs/plugin-react": "^5.0.2",
+		"@vitejs/plugin-react": "^5.2.0",
 		"concurrently": "^9.2.1",
 		"cross-env": "^10.1.0",
 		"electron": "^37.4.0",
