@@ -1,267 +1,113 @@
-<div align="center">
-  <img src="apps/desktop/static/images/logo.png" alt="FluxGit Logo" width="80" />
-  <h1>FluxGit</h1>
-  <p><strong>A modern Git client with multi-AI provider support, built on Tauri + SvelteKit</strong></p>
+# FluxGit
 
-  [![Build](https://github.com/fluxgitapp/fluxgit/actions/workflows/build.yml/badge.svg)](https://github.com/fluxgitapp/fluxgit/actions/workflows/build.yml)
-  [![Release](https://img.shields.io/github/v/release/fluxgitapp/fluxgit)](https://github.com/fluxgitapp/fluxgit/releases)
-  [![License](https://img.shields.io/badge/license-FSL--1.1--MIT-blue)](LICENSE.md)
-</div>
+**AI-Powered Git Desktop Application** — v1.1.0
 
----
+FluxGit is a cross-platform desktop Git client built on Tauri + SvelteKit that integrates a unified multi-provider AI system to automate and augment common version control workflows.
 
-## What is FluxGit?
-
-FluxGit is a desktop Git client for Windows (macOS and Linux coming soon) that combines powerful branch management with AI-assisted workflows. It lets you manage stacks of branches, generate commit messages with AI, chat with an AI agent about your code, and authenticate with GitHub — all from a single native desktop app.
+[![Build](https://github.com/fluxgitapp/fluxgit/actions/workflows/build.yml/badge.svg)](https://github.com/fluxgitapp/fluxgit/actions)
+[![Release](https://img.shields.io/github/v/release/fluxgitapp/fluxgit)](https://github.com/fluxgitapp/fluxgit/releases)
+[![License](https://img.shields.io/badge/license-FSL--1.0--MIT-blue)](LICENSE.md)
 
 ---
 
 ## Features
 
-### 🌿 Git & Branch Management
-- Visual stack-based branch management
-- Commit, amend, squash, reorder, and rebase from the UI
-- Drag-and-drop file assignment to branches
-- Upstream integration and conflict resolution
-- Oplog (snapshot history) with one-click restore
-- Git hooks support (pre-commit, post-commit, message)
-- Worktree management
+### AI Commit Message Generation
+Click the ✨ button in the commit editor to generate a Conventional Commits-formatted message from your staged diff. Works with all 6 AI providers.
 
-### 🤖 Multi-AI Provider Support
-FluxGit supports four AI providers for commit message generation and agent chat:
+### Branch Intelligence
+Click ✨ on any branch card to open the Branch Intelligence panel:
+- **💡 Explain Changes** — plain English summary of what the branch does
+- **📝 Generate PR Description** — full GitHub PR with title, summary, testing notes
+- **🔍 Find Issues** — code review: bugs, security, performance problems
+- **✍️ Suggest Commit Message** — conventional commit for the branch's changes
 
-| Provider | Models |
-|----------|--------|
-| 🟦 Google Gemini | `gemini-2.5-flash`, `gemini-2.5-pro`, `gemini-2.0-flash` |
-| 🟧 Mistral AI | `mistral-small-latest`, `mistral-medium-latest`, `mistral-large-latest` |
-| ⬛ Grok (xAI) | `grok-2`, `grok-2-mini` |
-| 🟩 DeepSeek | `deepseek-chat`, `deepseek-reasoner` |
+### AI Chat Panel
+Full chat interface with real branch context — the AI knows your actual changed files. Supports real PR creation directly from chat.
 
-**AI Settings Panel** (Project Settings → AI Options):
-- Provider selector with status indicators (grey/yellow/green/red dots)
-- Per-provider API key storage via Tauri Store (never written to `.env` or git config)
-- Model dropdown filtered per provider
-- Test Connection button with live feedback
-- Toggles: "Use for commit message generation" and "Use for AI agent chat"
-- Default fallback to Gemini if `GEMINI_API_KEY` is set in environment
+### Multi-Provider AI Support
+| Provider | Type | Cost |
+|----------|------|------|
+| Google Gemini | Cloud | Free tier |
+| Mistral AI | Cloud | Paid |
+| Grok (xAI) | Cloud | Paid |
+| DeepSeek | Cloud | Paid |
+| Ollama | **Local** | Free |
+| LMStudio | **Local** | Free |
 
-**Commit Message Generation:**
-- Reads staged diff and sends to selected AI provider
-- Button tooltip shows active provider: "Generate with Gemini 2.5 Flash"
-- Falls back to existing AI service if new provider not configured
-- Error toasts on API failures (e.g. 503 capacity errors)
+### Stream Rules
+Define glob patterns to control which files are tracked per branch. Full CRUD with auto-suggest from file analysis.
 
-**AI Agent Chat:**
-- Generic chat panel powered by selected provider
-- Shows "FluxGit AI — Google Gemini gemini-2.5-flash" in header
-- Automatically switches when provider changes in settings
-- Falls back to Claude Code panel if `useForAgentChat` is disabled
-
-### 🔐 GitHub OAuth (FluxGit-branded)
-- Custom GitHub OAuth App registered as **"FluxGit"**
-- Uses GitHub Device Flow — no browser redirect needed
-- OAuth backend deployed on Railway (`fluxgit-api-production.up.railway.app`)
-- Shows "Authorize FluxGit" instead of "Authorize GitButler Client"
-
-### 🔗 Forge Integrations
-- GitHub: Pull requests, reviews, checks, auto-merge
-- GitLab: Merge requests, self-hosted support
-- Gerrit: Push and review support
-
-### 🎨 UI & UX
-- Dark theme with customizable appearance
-- Floating commit box mode
-- Resizable panels
-- Keyboard shortcuts
-- Svelte 5 runes-based reactive UI
-
----
-
-## Architecture
-
-```
-fluxgit/
-├── apps/
-│   ├── desktop/          # SvelteKit + Tauri desktop app (main app)
-│   │   ├── src/
-│   │   │   ├── components/
-│   │   │   │   ├── AIChatPanel.svelte          # Generic AI chat panel
-│   │   │   │   ├── CommitMessageEditor.svelte  # AI-powered commit editor
-│   │   │   │   ├── StackView.svelte            # Branch stack view
-│   │   │   │   ├── projectSettings/
-│   │   │   │   │   └── AISettingsPanel.svelte  # Multi-AI settings UI
-│   │   │   │   └── codegen/
-│   │   │   │       └── CodegenMessages.svelte  # Claude Code chat
-│   │   │   └── lib/
-│   │   │       ├── ai/
-│   │   │       │   ├── aiProviderClient.ts         # Shared types & interfaces
-│   │   │       │   ├── aiProviderService.svelte.ts # Reactive service + Tauri Store
-│   │   │       │   ├── geminiProviderClient.ts     # Gemini via @google/genai
-│   │   │       │   ├── openAICompatibleClient.ts   # Mistral/Grok/DeepSeek via fetch()
-│   │   │       │   ├── providerCatalogue.ts        # Provider + model definitions
-│   │   │       │   └── providerStatus.ts           # Status dot color logic
-│   │   │       └── bootstrap/
-│   │   │           └── deps.ts                 # DI registration
-│   │
-│   ├── web/              # SvelteKit marketing + cloud web app
-│   │   └── src/routes/
-│   │       ├── (home)/   # Landing page (Hero, Features, AI, Changelog)
-│   │       ├── (app)/    # Cloud app (login, profile, orgs, reviews)
-│   │       ├── downloads/# Download page (macOS, Linux, Windows)
-│   │       ├── releases/ # Release notes (same as downloads, used by CLI)
-│   │       ├── nightly/  # Nightly builds page
-│   │       ├── cli/      # CLI documentation page
-│   │       └── install.sh/ # Shell install script endpoint
-│   │
-│   └── lite/             # Electron lite version
-│
-├── crates/               # Rust backend (Tauri)
-│   ├── fluxgit-tauri/    # Main Tauri app entry point
-│   ├── but-github/       # GitHub OAuth device flow
-│   ├── but-settings/     # App settings with defaults.jsonc
-│   ├── but-api/          # Tauri command handlers
-│   └── ...               # 40+ Rust crates
-│
-├── packages/
-│   ├── ui/               # Shared Svelte UI component library
-│   ├── shared/           # Shared TypeScript utilities
-│   └── core/             # DI context (InjectionToken)
-│
-└── fluxgit-api/          # OAuth backend (Node.js + Express)
-    └── src/index.js
-```
-
----
-
-## FluxGit Web App
-
-The web app (`apps/web`) is a SvelteKit application deployed on Vercel. It serves two purposes:
-
-### 1. Marketing Website
-The public-facing landing page at `fluxgit.com`:
-- **Hero** — tagline and download CTA
-- **Main Features** — stack-based branch management, unlimited undo, agent integrations
-- **AI Features** — showcase of AI-powered workflows
-- **Feature Updates** — latest additions
-- **Social Quotes** — community testimonials
-- **Changelog** — release history pulled from GitHub releases
-- **Blog Highlights** — latest posts from Ghost CMS
-
-### 2. Downloads & Releases
-- `/downloads` — latest release with platform-specific download cards:
-  - macOS: Apple Silicon + Intel
-  - Linux: `.deb` and `.rpm` for x86-64 and ARM64, plus CLI binary
-  - Windows: MSI installer
-- `/releases` — same page, used by the CLI after updates to show release notes
-- `/nightly` — nightly build downloads
-
-### 3. Cloud App (authenticated)
-Routes under `/(app)/`:
-- `/login` — GitHub OAuth login
-- `/profile` — user profile management
-- `/organizations` — org management
-- `/[ownerSlug]/[projectSlug]/reviews` — code review interface
-- `/signup` — account creation
-
-### 4. CLI Page
-- `/cli` — CLI documentation with features, AI features, and scripts
-
-### 5. Install Script
-- `/install.sh` — shell script endpoint for `curl | sh` installation
-
-### Tech
-- **Framework:** SvelteKit with `@sveltejs/adapter-vercel`
-- **CMS:** Ghost Content API for blog posts
-- **Analytics:** Sentry
-- **Deployment:** Vercel
-
----
-
-## FluxGit API (OAuth Backend)
-
-A lightweight Node.js/Express server that handles GitHub OAuth authentication.
-
-**Deployed at:** `https://fluxgit-api-production.up.railway.app`
-
-### Endpoints
-
-| Method | Path | Description |
-|--------|------|-------------|
-| `GET` | `/health` | Health check → `{ status: "ok", app: "FluxGit API" }` |
-| `GET` | `/login` | Redirect to GitHub OAuth authorization |
-| `GET` | `/auth/callback` | Exchange code for access token |
-| `GET` | `/login/token.json` | Tauri-compatible token endpoint |
-| `GET` | `/login/whoami` | Validate token, return GitHub user info |
-
-### Features
-- Rate limiting (100 req/15min global, 20 req/15min for auth endpoints)
-- CORS configured for allowed origins
-- Request logging via Morgan
-- Error handling on all routes
-- Deployed on Railway with auto-deploy from GitHub
-
-### Source
-Repository: `https://github.com/fluxgitapp/fluxgit-api`
+### Auto-commit Automation
+Quick Workflow: stage → AI generate → commit. Optional auto-push. Configurable per project.
 
 ---
 
 ## Tech Stack
 
-### Frontend (Desktop App)
-- **Framework:** SvelteKit with Svelte 5 runes (`$state`, `$derived`, `$effect`)
-- **Desktop:** Tauri v2 (Rust backend + WebView frontend)
-- **Styling:** PostCSS with CSS custom properties
-- **State:** Redux (via `@reduxjs/toolkit`) + Svelte 5 reactive state
-- **Build:** Vite + Turborepo
+| Layer | Technology |
+|-------|-----------|
+| Desktop UI | SvelteKit 5 + TypeScript |
+| Desktop Shell | Tauri 2 (Rust) |
+| Git Engine | libgit2 via Rust crates |
+| Cloud API | Node.js + Express on Railway |
+| Authentication | GitHub OAuth (FluxGit app) |
+| AI — Cloud | Gemini · Mistral · Grok · DeepSeek |
+| AI — Local | Ollama · LMStudio |
+| Build System | Turborepo + pnpm workspaces |
+| CI/CD | GitHub Actions |
 
-### Web App
-- **Framework:** SvelteKit with `@sveltejs/adapter-vercel`
-- **Deployment:** Vercel
-- **CMS:** Ghost Content API (blog/changelog)
-- **Markdown:** `svelte-exmarkdown` + `marked`
-- **Syntax highlighting:** `highlight.js`
+---
 
-### Backend (Rust)
-- **Language:** Rust (stable)
-- **Async:** Tokio
-- **Git:** `git2` (libgit2 bindings) + `gix`
-- **IPC:** Tauri commands
-- **Storage:** Tauri Store plugin (`@tauri-apps/plugin-store`)
-- **Secrets:** OS keychain via `but-secret`
+## Project Structure
 
-### AI Integration
-- **Gemini:** `@google/genai` SDK
-- **Mistral / Grok / DeepSeek:** Native `fetch()` to OpenAI-compatible endpoints
-- **Storage:** All API keys stored in Tauri Store (never in git config or `.env`)
-
-### OAuth API
-- **Runtime:** Node.js 18+
-- **Framework:** Express 4
-- **Deployment:** Railway
-- **Rate limiting:** `express-rate-limit`
-- **Logging:** Morgan
+```
+fluxgit/
+├── apps/
+│   ├── desktop/                    # SvelteKit desktop frontend
+│   │   └── src/
+│   │       ├── components/
+│   │       │   ├── AIChatPanel.svelte          # AI chat with branch context
+│   │       │   ├── BranchIntelligence.svelte   # 4-action AI panel
+│   │       │   ├── CommitMessageEditor.svelte  # AI commit generation
+│   │       │   ├── BranchCard.svelte           # Branch card with ✨ button
+│   │       │   └── projectSettings/
+│   │       │       ├── AISettingsPanel.svelte  # Provider config UI
+│   │       │       ├── StreamRulesSettings.svelte
+│   │       │       └── AutomationSettings.svelte
+│   │       └── lib/
+│   │           └── ai/
+│   │               ├── aiProviderClient.ts     # Provider interface
+│   │               ├── aiProviderService.svelte.ts  # Settings + client factory
+│   │               ├── geminiProviderClient.ts # Gemini SDK client
+│   │               ├── openAICompatibleClient.ts   # All other providers
+│   │               └── providerCatalogue.ts    # Provider registry
+│   └── web/                        # SvelteKit web app
+├── crates/
+│   └── fluxgit-tauri/              # Rust/Tauri backend
+│       ├── src/main.rs             # App entry, deep link handler
+│       └── icons/                  # App icons (all sizes)
+└── .github/
+    └── workflows/
+        └── build.yml               # CI/CD pipeline
+```
 
 ---
 
 ## Getting Started
 
 ### Prerequisites
-- [Rust](https://rustup.rs/) (stable)
-- [Node.js](https://nodejs.org/) 22+
-- [pnpm](https://pnpm.io/) (version from `package.json`)
-- Windows: Visual Studio Build Tools with MSVC
+- Node.js 22+
+- pnpm 9+
+- Rust (stable)
+- [Tauri prerequisites](https://tauri.app/start/prerequisites/)
 
 ### Development
 
 ```bash
-# Clone the repo
-git clone https://github.com/fluxgitapp/fluxgit.git
+git clone https://github.com/fluxgitapp/fluxgit
 cd fluxgit
-
-# Install dependencies
 pnpm install
-
-# Start dev server (Tauri + SvelteKit hot reload)
 pnpm tauri dev
 ```
 
@@ -271,76 +117,70 @@ pnpm tauri dev
 pnpm tauri build
 ```
 
-Outputs to `target/tauri/release/bundle/`:
-- `msi/FluxGit_1.0.0_x64_en-US.msi` — Windows MSI installer
-- `nsis/FluxGit_1.0.0_x64-setup.exe` — Windows NSIS installer
-
-### Running the OAuth API locally
-
-```bash
-cd fluxgit-api
-cp .env.example .env
-# Fill in GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET
-npm install
-npm start
-# API runs on http://localhost:3333
-```
+Produces signed installers in `target/tauri/release/bundle/`.
 
 ---
 
-## Configuration
+## AI Setup
 
-### AI Providers
-Go to **Project Settings → AI Options** to configure:
-1. Select a provider (Gemini, Mistral, Grok, or DeepSeek)
-2. Enter your API key
-3. Choose a model
-4. Click **Save** then **Test Connection**
-5. Enable toggles for commit messages and/or agent chat
+### Cloud Providers
+Go to **Project Settings → AI Options**, select a provider, enter your API key, and click Save.
 
-### GitHub OAuth
-The app uses the FluxGit GitHub OAuth App (`Ov23liC1vTzKIVDLMKby`) for authentication via the Device Flow. No browser redirect is required — just enter the code shown in the app at `github.com/login/device`.
+- **Gemini**: [aistudio.google.com](https://aistudio.google.com) — free tier available
+- **Mistral**: [console.mistral.ai](https://console.mistral.ai)
+- **Grok**: [console.x.ai](https://console.x.ai)
+- **DeepSeek**: [platform.deepseek.com](https://platform.deepseek.com)
+
+### Local Providers (No API Key Required)
+
+**Ollama:**
+```bash
+# Install from https://ollama.ai
+ollama pull gemma4:e4b
+# Runs at http://localhost:11434
+```
+
+**LMStudio:**
+1. Download from [lmstudio.ai](https://lmstudio.ai)
+2. Download `google/gemma-4-e4b` model
+3. Start the server (Developer tab)
+4. Enable CORS in Server Settings
+5. Set URL to `http://127.0.0.1:1234` in FluxGit AI Options
+
+---
+
+## Authentication
+
+FluxGit uses GitHub OAuth for login. Click **Log in / Sign up** in Global Settings → General. The OAuth flow:
+
+1. App requests login URL from Railway API
+2. Browser opens GitHub authorization page
+3. After authorization, GitHub redirects to Railway
+4. Railway deep-links the token back to the app (`but-dev://login?access_token=...`)
+5. App logs in automatically
 
 ---
 
 ## CI/CD
 
-GitHub Actions workflow (`.github/workflows/build.yml`) triggers on `v*` tags:
+Pushing a version tag triggers the build pipeline:
 
-1. Checks out code
-2. Installs Rust stable + pnpm + Node 22
-3. Builds with `pnpm tauri build`
-4. Signs updater artifacts with `TAURI_SIGNING_PRIVATE_KEY`
-5. Uploads MSI and NSIS installers as artifacts
-6. Creates a GitHub Release with all installer files
+```bash
+git tag v1.x.x
+git push origin v1.x.x
+```
 
-### Required GitHub Secrets
-| Secret | Description |
-|--------|-------------|
-| `TAURI_SIGNING_PRIVATE_KEY` | Minisign private key for updater signing |
-| `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` | Password for the private key |
+GitHub Actions builds and signs installers for Windows (MSI + NSIS), macOS (DMG), and Linux (AppImage), then creates a GitHub Release.
 
 ---
 
-## Release
+## Related Repositories
 
-To create a new release:
-
-```bash
-git tag v1.0.2
-git push origin v1.0.2
-```
-
-This triggers the CI build and automatically creates a GitHub Release at `https://github.com/fluxgitapp/fluxgit/releases`.
+- **[fluxgitapp/fluxgit-api](https://github.com/fluxgitapp/fluxgit-api)** — OAuth API (Node.js, Railway)
+- **fluxgit-web** — Marketing website (Next.js)
 
 ---
 
 ## License
 
-[FSL-1.1-MIT](LICENSE.md) — Functional Source License
-
----
-
-<div align="center">
-  Built with ❤️ by <a href="https://github.com/fluxgitapp">FluxGit & Shafian Khan</a>
-</div>
+FluxGit is based on [GitButler](https://github.com/gitbutlerapp/gitbutler) and is licensed under the [Functional Source License 1.0 with MIT Future License](LICENSE.md).
