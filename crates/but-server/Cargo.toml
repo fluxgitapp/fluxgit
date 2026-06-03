@@ -31,12 +31,12 @@ fluxgit-project.workspace = true
 fluxgit-watcher.workspace = true
 
 serde.workspace = true
-axum = { version = "0.8.8", features = ["ws"] }
+axum = { version = "0.8.9", features = ["ws"] }
 futures-util = { version = "0.3", default-features = false, features = [
     "sink",
     "std",
 ] }
-tower-http = { version = "0.6.8", features = ["cors"] }
+tower-http = { version = "0.6.11", features = ["cors"] }
 tokio = { workspace = true, features = ["full"] }
 anyhow.workspace = true
 serde_json.workspace = true
