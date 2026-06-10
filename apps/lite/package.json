@@ -33,20 +33,20 @@
 		}
 	},
 	"dependencies": {
-		"@tanstack/react-router": "^1.160.2",
-		"react": "^19.2.4",
-		"react-dom": "^19.2.4",
+		"@tanstack/react-router": "^1.170.11",
+		"react": "^19.2.7",
+		"react-dom": "^19.2.7",
 		"@fluxgit/but-sdk": "workspace:*"
 	},
 	"devDependencies": {
-		"@types/node": "^22.19.11",
-		"@types/react": "^19.2.14",
+		"@types/node": "^22.19.19",
+		"@types/react": "^19.2.16",
 		"@types/react-dom": "^19.1.7",
-		"@vitejs/plugin-react": "^5.0.2",
+		"@vitejs/plugin-react": "^5.2.0",
 		"concurrently": "^9.2.1",
 		"cross-env": "^10.1.0",
 		"electron": "^37.4.0",
-		"electron-builder": "^26.8.1",
+		"electron-builder": "^26.14.0",
 		"jsdom": "26.1.0",
 		"typescript": "catalog:",
 		"vite": "catalog:",
